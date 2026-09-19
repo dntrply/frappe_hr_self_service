@@ -122,3 +122,53 @@ def get_leave_for_approval(name):
         "status": leave.status,
         "docstatus": leave.docstatus,
     }
+
+
+@frappe.whitelist(methods=["POST"])
+def approve_leave(name):
+    """Approve an open leave request assigned to the logged-in approver."""
+
+    leave = _get_leave_for_approver(
+        name,
+        require_open=True,
+    )
+
+    # Preserve native HRMS permission enforcement in addition to
+    # the self-service approver authorization check.
+    leave.check_permission("submit")
+
+    leave.status = "Approved"
+    leave.submit()
+
+    frappe.clear_messages()
+
+    return {
+        "name": leave.name,
+        "status": leave.status,
+        "docstatus": leave.docstatus,
+        "message": _("Leave request approved."),
+    }
+
+
+@frappe.whitelist(methods=["POST"])
+def reject_leave(name):
+    """Reject an open leave request assigned to the logged-in approver."""
+
+    leave = _get_leave_for_approver(
+        name,
+        require_open=True,
+    )
+
+    leave.check_permission("submit")
+
+    leave.status = "Rejected"
+    leave.submit()
+
+    frappe.clear_messages()
+
+    return {
+        "name": leave.name,
+        "status": leave.status,
+        "docstatus": leave.docstatus,
+        "message": _("Leave request rejected."),
+    }
