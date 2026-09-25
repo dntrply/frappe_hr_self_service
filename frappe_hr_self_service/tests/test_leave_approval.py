@@ -85,6 +85,7 @@ class TestLeaveApproval(unittest.TestCase):
 
         self.frappe.db.get_value.reset_mock()
         self.frappe.get_doc.reset_mock()
+        self.frappe.clear_messages.reset_mock()
 
     def leave(
         self,
@@ -177,4 +178,64 @@ class TestLeaveApproval(unittest.TestCase):
             self.leave_approval._get_leave_for_approver(
                 "HR-LAP-00001",
                 require_open=True,
+            )
+
+    def test_approve_checks_submit_permission_and_submits(self):
+        leave = self.leave()
+        leave.check_permission = Mock()
+        leave.submit = Mock()
+
+        self.frappe.db.get_value.return_value = "HR-LAP-00001"
+        self.frappe.get_doc.return_value = leave
+
+        result = self.leave_approval.approve_leave(
+            "HR-LAP-00001"
+        )
+
+        leave.check_permission.assert_called_once_with("submit")
+        self.assertEqual(leave.status, "Approved")
+        leave.submit.assert_called_once_with()
+        self.frappe.clear_messages.assert_called_once_with()
+        self.assertEqual(result["status"], "Approved")
+
+    def test_reject_checks_submit_permission_and_submits(self):
+        leave = self.leave()
+        leave.check_permission = Mock()
+        leave.submit = Mock()
+
+        self.frappe.db.get_value.return_value = "HR-LAP-00001"
+        self.frappe.get_doc.return_value = leave
+
+        result = self.leave_approval.reject_leave(
+            "HR-LAP-00001"
+        )
+
+        leave.check_permission.assert_called_once_with("submit")
+        self.assertEqual(leave.status, "Rejected")
+        leave.submit.assert_called_once_with()
+        self.frappe.clear_messages.assert_called_once_with()
+        self.assertEqual(result["status"], "Rejected")
+
+    def test_approve_rejects_processed_request(self):
+        self.frappe.db.get_value.return_value = "HR-LAP-00001"
+        self.frappe.get_doc.return_value = self.leave(
+            docstatus=1,
+            status="Approved",
+        )
+
+        with self.assertRaises(TestValidationError):
+            self.leave_approval.approve_leave(
+                "HR-LAP-00001"
+            )
+
+    def test_reject_rejects_non_open_request(self):
+        self.frappe.db.get_value.return_value = "HR-LAP-00001"
+        self.frappe.get_doc.return_value = self.leave(
+            docstatus=0,
+            status="Rejected",
+        )
+
+        with self.assertRaises(TestValidationError):
+            self.leave_approval.reject_leave(
+                "HR-LAP-00001"
             )
