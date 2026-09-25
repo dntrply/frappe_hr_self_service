@@ -147,6 +147,10 @@ class TestEmployeeSelfService(unittest.TestCase):
         ]:
             mock.reset_mock()
 
+        self.frappe.get_doc.reset_mock()
+        self.frappe.get_doc.return_value = None
+        self.frappe.clear_messages.reset_mock()
+
         self.get_current_employee.return_value = self.employee
         self.get_overlapping_leave_application.return_value = None
         self.get_allocated_leave_types.return_value = [
@@ -278,3 +282,96 @@ class TestEmployeeSelfService(unittest.TestCase):
         self.assertTrue(
             result["leave_types"][0]["eligible"]
         )
+
+    def test_create_request_rejects_overlap_before_insert(self):
+        self.get_overlapping_leave_application.return_value = {
+            "name": "HR-LAP-00001",
+            "status": "Open",
+        }
+
+        with self.assertRaises(TestValidationError):
+            self.employee_self_service.create_leave_request(
+                from_date="2026-09-20",
+                to_date="2026-09-20",
+                leave_type="Example Leave",
+            )
+
+        self.frappe.get_doc.assert_not_called()
+
+    def test_create_request_rejects_unavailable_leave_type(self):
+        self.get_allocated_leave_types.return_value = []
+
+        with self.assertRaises(TestValidationError):
+            self.employee_self_service.create_leave_request(
+                from_date="2026-09-20",
+                to_date="2026-09-20",
+                leave_type="Not Allocated Leave",
+            )
+
+        self.frappe.get_doc.assert_not_called()
+
+    def test_create_request_rejects_ineligible_leave_type(self):
+        self.get_consumable_leave_balance.return_value = {
+            "leave_balance": 0.0,
+            "leave_balance_for_consumption": 0.0,
+        }
+
+        with self.assertRaises(TestValidationError):
+            self.employee_self_service.create_leave_request(
+                from_date="2026-09-20",
+                to_date="2026-09-20",
+                leave_type="Example Leave",
+            )
+
+        self.frappe.get_doc.assert_not_called()
+
+    def test_create_request_uses_server_derived_employee_context(self):
+        insert = Mock()
+        document = SimpleNamespace(
+            name="HR-LAP-00001",
+            status="Open",
+            leave_type="Example Leave",
+            from_date=date(2026, 9, 20),
+            to_date=date(2026, 9, 20),
+            total_leave_days=1.0,
+            insert=insert,
+        )
+        self.frappe.get_doc.return_value = document
+
+        result = self.employee_self_service.create_leave_request(
+            from_date="2026-09-20",
+            to_date="2026-09-20",
+            leave_type="Example Leave",
+            reason="Family event",
+        )
+
+        self.frappe.get_doc.assert_called_once_with(
+            {
+                "doctype": "Leave Application",
+                "employee": "HR-EMP-00001",
+                "company": "Example Company",
+                "leave_approver": "approver@example.com",
+                "leave_type": "Example Leave",
+                "from_date": date(2026, 9, 20),
+                "to_date": date(2026, 9, 20),
+                "description": "Family event",
+                "status": "Open",
+                "follow_via_email": 1,
+            }
+        )
+
+        insert.assert_called_once_with(
+            ignore_permissions=True
+        )
+
+        self.get_current_employee.assert_any_call(
+            require_company=True,
+            require_leave_approver=True,
+        )
+
+        self.frappe.clear_messages.assert_called_once_with()
+
+        self.assertEqual(result["name"], "HR-LAP-00001")
+        self.assertEqual(result["status"], "Open")
+        self.assertEqual(result["leave_type"], "Example Leave")
+        self.assertEqual(result["total_leave_days"], 1.0)
