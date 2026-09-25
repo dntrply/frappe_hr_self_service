@@ -22,6 +22,7 @@ class TestEmployeeSelfService(unittest.TestCase):
                 "frappe",
                 "frappe.utils",
                 "frappe_hr_self_service.employee_context",
+                "frappe_hr_self_service.extensions",
                 "frappe_hr_self_service.hrms_compat",
                 "frappe_hr_self_service.employee_self_service",
             ]
@@ -78,6 +79,16 @@ class TestEmployeeSelfService(unittest.TestCase):
             employee_context.get_current_employee
         )
 
+        extensions = types.ModuleType(
+            "frappe_hr_self_service.extensions"
+        )
+        cls.get_leave_eligibility_extension_reason = Mock(
+            return_value=None
+        )
+        extensions.get_leave_eligibility_extension_reason = (
+            cls.get_leave_eligibility_extension_reason
+        )
+
         hrms_compat = types.ModuleType(
             "frappe_hr_self_service.hrms_compat"
         )
@@ -114,6 +125,9 @@ class TestEmployeeSelfService(unittest.TestCase):
             "frappe_hr_self_service.employee_context"
         ] = employee_context
         sys.modules[
+            "frappe_hr_self_service.extensions"
+        ] = extensions
+        sys.modules[
             "frappe_hr_self_service.hrms_compat"
         ] = hrms_compat
         sys.modules.pop(
@@ -138,6 +152,7 @@ class TestEmployeeSelfService(unittest.TestCase):
 
         for mock in [
             self.get_current_employee,
+            self.get_leave_eligibility_extension_reason,
             self.get_leave_balance_map,
             self.get_requested_leave_days,
             self.get_consumable_leave_balance,
@@ -152,6 +167,7 @@ class TestEmployeeSelfService(unittest.TestCase):
         self.frappe.clear_messages.reset_mock()
 
         self.get_current_employee.return_value = self.employee
+        self.get_leave_eligibility_extension_reason.return_value = None
         self.get_overlapping_leave_application.return_value = None
         self.get_allocated_leave_types.return_value = [
             "Example Leave"
@@ -375,3 +391,53 @@ class TestEmployeeSelfService(unittest.TestCase):
         self.assertEqual(result["status"], "Open")
         self.assertEqual(result["leave_type"], "Example Leave")
         self.assertEqual(result["total_leave_days"], 1.0)
+
+    def test_extension_can_block_core_eligible_leave(self):
+        self.get_leave_eligibility_extension_reason.return_value = (
+            "Organization policy blocks this leave."
+        )
+
+        result = (
+            self.employee_self_service.get_available_leave_types(
+                "2026-09-20",
+                "2026-09-20",
+            )
+        )
+
+        row = result["leave_types"][0]
+
+        self.assertFalse(row["eligible"])
+        self.assertEqual(
+            row["reason"],
+            "Organization policy blocks this leave.",
+        )
+
+        self.get_leave_eligibility_extension_reason.assert_called_once_with(
+            employee="HR-EMP-00001",
+            company="Example Company",
+            leave_type="Example Leave",
+            from_date=date(2026, 9, 20),
+            to_date=date(2026, 9, 20),
+            requested_days=1.0,
+            balance=5.0,
+            available_for_request=5.0,
+        )
+
+    def test_extension_is_not_called_after_core_rejection(self):
+        self.get_consumable_leave_balance.return_value = {
+            "leave_balance": 0.0,
+            "leave_balance_for_consumption": 0.0,
+        }
+
+        result = (
+            self.employee_self_service.get_available_leave_types(
+                "2026-09-20",
+                "2026-09-20",
+            )
+        )
+
+        self.assertFalse(
+            result["leave_types"][0]["eligible"]
+        )
+
+        self.get_leave_eligibility_extension_reason.assert_not_called()

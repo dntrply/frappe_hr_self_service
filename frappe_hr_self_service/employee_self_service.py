@@ -5,6 +5,9 @@ from frappe import _
 from frappe.utils import date_diff, flt, getdate
 
 from frappe_hr_self_service.employee_context import get_current_employee
+from frappe_hr_self_service.extensions import (
+    get_leave_eligibility_extension_reason,
+)
 from frappe_hr_self_service.hrms_compat import (
     get_allocated_leave_types,
     get_consumable_leave_balance,
@@ -134,6 +137,24 @@ def get_available_leave_types(from_date=None, to_date=None):
                     requested_days,
                     consumable,
                 )
+
+        if eligible:
+            extension_reason = (
+                get_leave_eligibility_extension_reason(
+                    employee=employee.name,
+                    company=employee.company,
+                    leave_type=leave_type,
+                    from_date=from_date,
+                    to_date=to_date,
+                    requested_days=requested_days,
+                    balance=balance,
+                    available_for_request=consumable,
+                )
+            )
+
+            if extension_reason:
+                eligible = False
+                reason = extension_reason
 
         results.append(
             {
