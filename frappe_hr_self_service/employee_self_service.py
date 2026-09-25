@@ -2,7 +2,7 @@
 
 import frappe
 from frappe import _
-from frappe.utils import date_diff, getdate
+from frappe.utils import date_diff, flt, getdate
 
 from frappe_hr_self_service.employee_context import get_current_employee
 from frappe_hr_self_service.hrms_compat import (
@@ -151,4 +151,127 @@ def get_available_leave_types(from_date=None, to_date=None):
         "to_date": str(to_date),
         "existing_request": None,
         "leave_types": results,
+    }
+
+
+def _create_leave_application(
+    *,
+    leave_type,
+    from_date,
+    to_date,
+    reason=None,
+):
+    """Create a Leave Application for the logged-in employee."""
+
+    employee = get_current_employee(
+        require_company=True,
+        require_leave_approver=True,
+    )
+
+    doc = frappe.get_doc(
+        {
+            "doctype": "Leave Application",
+            "employee": employee.name,
+            "company": employee.company,
+            "leave_approver": employee.leave_approver,
+            "leave_type": leave_type,
+            "from_date": getdate(from_date),
+            "to_date": getdate(to_date),
+            "description": reason or "",
+            "status": "Open",
+            "follow_via_email": 1,
+        }
+    )
+
+    doc.insert(ignore_permissions=True)
+
+    return doc
+
+
+@frappe.whitelist(methods=["POST"])
+def create_leave_request(
+    from_date=None,
+    to_date=None,
+    leave_type=None,
+    reason=None,
+):
+    """Create a leave request after server-side eligibility checks."""
+
+    # Establish employee context before accepting the request payload.
+    get_current_employee(
+        require_company=True,
+        require_leave_approver=True,
+    )
+
+    if not from_date or not to_date:
+        frappe.throw(_("From Date and To Date are required."))
+
+    if not leave_type:
+        frappe.throw(_("Please select a Leave Type."))
+
+    from_date = getdate(from_date)
+    to_date = getdate(to_date)
+
+    if to_date < from_date:
+        frappe.throw(_("To Date cannot be before From Date."))
+
+    # Re-evaluate eligibility at submission time.
+    # Never trust a Leave Type merely because the browser offered it.
+    availability = get_available_leave_types(
+        from_date=from_date,
+        to_date=to_date,
+    )
+
+    if availability.get("existing_request"):
+        frappe.throw(
+            _(
+                "You already have a leave request "
+                "covering these dates."
+            )
+        )
+
+    selected = next(
+        (
+            row
+            for row in availability["leave_types"]
+            if row["leave_type"] == leave_type
+        ),
+        None,
+    )
+
+    if not selected:
+        frappe.throw(
+            _(
+                "The selected leave type is not available "
+                "for these dates."
+            )
+        )
+
+    if not selected["eligible"]:
+        frappe.throw(
+            selected["reason"]
+            or _(
+                "The selected leave type cannot be used "
+                "for these dates."
+            )
+        )
+
+    doc = _create_leave_application(
+        leave_type=leave_type,
+        from_date=from_date,
+        to_date=to_date,
+        reason=reason,
+    )
+
+    # Avoid carrying incidental HRMS notification messages into
+    # the simplified self-service response.
+    frappe.clear_messages()
+
+    return {
+        "name": doc.name,
+        "status": doc.status,
+        "leave_type": doc.leave_type,
+        "from_date": str(doc.from_date),
+        "to_date": str(doc.to_date),
+        "total_leave_days": flt(doc.total_leave_days),
     }
