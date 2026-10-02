@@ -28,6 +28,30 @@ def get_my_leave_balance():
 
 
 @frappe.whitelist()
+def get_my_leave_requests():
+    """Return leave applications belonging to the logged-in employee."""
+
+    employee = get_current_employee()
+
+    return frappe.get_all(
+        "Leave Application",
+        filters={
+            "employee": employee.name,
+        },
+        fields=[
+            "name",
+            "leave_type",
+            "from_date",
+            "to_date",
+            "total_leave_days",
+            "status",
+            "docstatus",
+        ],
+        order_by="creation desc",
+    )
+
+
+@frappe.whitelist()
 def get_available_leave_types(from_date=None, to_date=None):
     """Return leave-type eligibility for the logged-in employee.
 
