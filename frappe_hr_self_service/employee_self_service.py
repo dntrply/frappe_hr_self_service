@@ -46,6 +46,7 @@ def get_my_leave_requests():
             "total_leave_days",
             "status",
             "docstatus",
+            "custom_rejection_reason as rejection_reason",
         ],
         order_by="creation desc",
     )
