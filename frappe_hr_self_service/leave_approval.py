@@ -5,6 +5,9 @@ from frappe import _
 from frappe.utils import formatdate
 
 
+REJECTION_REASON_FIELD = "custom_rejection_reason"
+
+
 def _get_leave_for_approver(name, require_open=False):
     """Return a Leave Application only when the current user is its approver."""
 
@@ -60,6 +63,31 @@ def _get_leave_for_approver(name, require_open=False):
             )
 
     return leave
+
+
+def _normalize_rejection_reason(reason):
+    """Return a trimmed rejection reason or raise when it is empty."""
+
+    reason = str(reason or "").strip()
+
+    if not reason:
+        frappe.throw(
+            _("Please provide a reason for rejecting this leave request.")
+        )
+
+    return reason
+
+
+def validate_rejection_reason(doc, method=None):
+    """Require a reason before a rejected Leave Application is submitted."""
+
+    if doc.status != "Rejected":
+        return
+
+    reason = _normalize_rejection_reason(
+        getattr(doc, REJECTION_REASON_FIELD, None)
+    )
+    setattr(doc, REJECTION_REASON_FIELD, reason)
 
 
 @frappe.whitelist()
@@ -121,6 +149,9 @@ def get_leave_for_approval(name):
         "reason": leave.description or "",
         "status": leave.status,
         "docstatus": leave.docstatus,
+        "rejection_reason": (
+            getattr(leave, REJECTION_REASON_FIELD, None) or ""
+        ),
     }
 
 
@@ -151,8 +182,8 @@ def approve_leave(name):
 
 
 @frappe.whitelist(methods=["POST"])
-def reject_leave(name):
-    """Reject an open leave request assigned to the logged-in approver."""
+def reject_leave(name, reason=None):
+    """Reject an open leave request with an auditable rejection reason."""
 
     leave = _get_leave_for_approver(
         name,
@@ -161,6 +192,8 @@ def reject_leave(name):
 
     leave.check_permission("submit")
 
+    reason = _normalize_rejection_reason(reason)
+    setattr(leave, REJECTION_REASON_FIELD, reason)
     leave.status = "Rejected"
     leave.submit()
 
@@ -170,5 +203,6 @@ def reject_leave(name):
         "name": leave.name,
         "status": leave.status,
         "docstatus": leave.docstatus,
+        "rejection_reason": reason,
         "message": _("Leave request rejected."),
     }
