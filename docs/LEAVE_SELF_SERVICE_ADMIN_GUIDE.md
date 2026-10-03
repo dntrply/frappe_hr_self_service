@@ -6,7 +6,7 @@ It is intentionally generic. Organization-specific leave policy belongs in your 
 
 Examples of policy that are **not** defined here include:
 
-- leave entitlement quantities;
+- exact leave entitlement quantities;
 - waiting periods;
 - leave-type sequencing or priority rules;
 - carry-forward rules;
@@ -14,9 +14,19 @@ Examples of policy that are **not** defined here include:
 - organization-specific cutover decisions;
 - branding, Workspace names, and employee-facing labels.
 
+This guide does, however, explain how to configure the Frappe HR masters that express those choices: **Leave Types, Leave Periods, Leave Policies, Leave Policy Assignments, and Leave Allocations**.
+
 For a worked example of building the employee-facing UI with a Frappe Workspace, Custom HTML Blocks, Web Pages, and these APIs, see:
 
 [Employee Self-Service UI Starter Guide](EMPLOYEE_SELF_SERVICE_UI_STARTER_GUIDE.md)
+
+Useful upstream Frappe HR documentation:
+
+- [Leave Type](https://docs.frappe.io/hr/leave-type)
+- [Leave Period](https://docs.frappe.io/hr/leave-period)
+- [Leave Policy](https://docs.frappe.io/hr/leave-policy)
+- [Leave Policy Assignment](https://docs.frappe.io/hr/leave-policy-assignment)
+- [Leave Allocation](https://docs.frappe.io/hr/leave-allocation)
 
 ---
 
@@ -30,6 +40,8 @@ The public app does not replace Frappe HR's core documents or validation. Frappe
 - Users;
 - Leave Approvers;
 - Holiday Lists;
+- Leave Types;
+- Leave Periods;
 - Leave Policies;
 - Leave Policy Assignments;
 - Leave Allocations;
@@ -83,7 +95,9 @@ A typical employee self-service setup depends on the following:
 | Employee self-service home | User can reach the organization's employee self-service UI |
 | Leave Approver | Set on the Employee |
 | Holiday List Assignment | Correct dates and Submitted |
-| Leave Policy | Correct policy rows and Submitted, when using the policy-assignment path |
+| Leave Type | Configured to express the intended leave behavior |
+| Leave Period | Correct allocation period, when your organization uses Leave Periods |
+| Leave Policy | Correct Leave Type rows and annual allocations; Submitted |
 | Leave Policy Assignment | Submitted, when generating entitlement through policy |
 | Leave Allocation | Submitted and valid for the relevant date range |
 | Leave Application | Created and processed through the normal Frappe HR workflow |
@@ -202,21 +216,187 @@ Confirm:
 
 ---
 
-# Part IV - Leave entitlement and allocation
+# Part IV - Leave Types, Leave Period, and Leave Policy
 
-There are two common administrative patterns.
+Before deciding how employee balances will be created, configure the leave masters that define the organization's leave scheme.
 
-Use the one that matches how your organization is establishing the employee's entitlement.
+These records answer different questions:
+
+```text
+Leave Type
+    What kind of leave is this and how should it behave?
+
+Leave Period
+    For what time window are leaves being managed?
+
+Leave Policy
+    How many days of each Leave Type is an employee entitled to for that period?
+
+Leave Policy Assignment
+    Which employee receives that policy for which period?
+
+Leave Allocation
+    What actual leave balance/allocation exists for that employee?
+```
 
 ---
 
-## 9. Pattern A - Generate entitlement from a Leave Policy Assignment
+## 9. Create or review Leave Types
 
-This is the normal pattern when Frappe HR is responsible for creating the employee's entitlement for the applicable leave period.
+Create the Leave Types required by your organization before building a Leave Policy.
+
+Examples might include:
+
+```text
+Casual Leave
+Sick Leave
+Privilege / Earned Leave
+Leave Without Pay
+Optional Leave
+```
+
+The exact names and rules are organization-specific.
+
+Important Leave Type settings in Frappe HR include, depending on the type of leave:
+
+- **Maximum Leave Allocation Allowed per Leave Period**;
+- **Allow Leave Application After (Working Days)**;
+- **Maximum Consecutive Leaves Allowed**;
+- **Is Carry Forward**;
+- **Is Leave Without Pay**;
+- **Is Optional Leave**;
+- **Allow Negative Balance**;
+- **Allow Over Allocation**;
+- **Include holidays within leaves as leaves**;
+- **Allow Encashment**;
+- **Is Earned Leave** and its earning frequency;
+- partially paid leave settings, where applicable.
+
+### Important distinction
+
+A Leave Type defines the **behavior and constraints** of that category of leave.
+
+It does not, by itself, give an employee a balance.
+
+The employee receives usable entitlement through a Leave Allocation, commonly generated from a Leave Policy Assignment or created/imported directly.
+
+### Earned Leave note
+
+If a Leave Type is configured as **Earned Leave**, its balance may accrue over time according to the configured earning frequency instead of appearing as the full annual entitlement immediately.
+
+That behavior should be understood before testing self-service balances.
+
+### Verify
+
+For every Leave Type, confirm that its configuration matches the organization's approved policy before using it in a Leave Policy.
+
+---
+
+## 10. Create or review the Leave Period
+
+Many organizations manage leave on a calendar-year or fiscal-year basis.
+
+Create the applicable Leave Period when your implementation uses one.
+
+Typical fields include:
+
+- Company;
+- From Date;
+- To Date;
+- active status;
+- optional-holiday configuration, when used.
+
+For example:
+
+```text
+Calendar-year organization
+From Date: 01-Jan-2027
+To Date:   31-Dec-2027
+```
+
+or:
+
+```text
+Fiscal leave year
+From Date: 01-Apr-2027
+To Date:   31-Mar-2028
+```
+
+The start of the next **Leave Period**, rather than January 1 specifically, is the important boundary when moving employees onto a new annual policy.
+
+---
+
+## 11. Build and submit the Leave Policy
+
+Create a Leave Policy that represents the organization's entitlement scheme.
+
+For each applicable Leave Type, add a policy row with its **Annual Allocation**.
+
+Example only:
+
+| Leave Type | Annual Allocation |
+|---|---:|
+| Casual Leave | 10 |
+| Sick Leave | 12 |
+| Privilege Leave | 15 |
+
+Do not copy these example quantities unless they match your organization's actual policy.
+
+### Relationship between Leave Type and Leave Policy
+
+Think of the two documents this way:
+
+```text
+Leave Type
+    defines rules and behavior
+
+Leave Policy
+    groups selected Leave Types
+    and defines annual entitlement quantities
+```
+
+The Leave Type's maximum-allocation settings can constrain what is valid in the Leave Policy.
+
+After reviewing the policy rows, **Save and Submit** the Leave Policy.
+
+### Verify
+
+Confirm:
+
+- every intended Leave Type is present;
+- Annual Allocation is correct for each row;
+- no unintended Leave Type is included;
+- the Leave Policy is Submitted.
+
+Submitting the Leave Policy itself does **not** create an employee's Leave Allocations. The policy still has to be assigned to an employee.
+
+---
+
+# Part V - Establish employee entitlement
+
+There are two common administrative patterns.
+
+They serve different purposes and should not normally be combined for the same employee and the same allocation period.
+
+---
+
+## 12. Pattern A - Generate entitlement from a Leave Policy Assignment
+
+This is the normal **steady-state** pattern when Frappe HR is responsible for creating the employee's entitlement for the applicable Leave Period.
+
+It is typically appropriate for:
+
+- new employees after Frappe HR becomes the system of record;
+- existing employees at the start of a new Leave Period;
+- bulk annual leave allocation when the organization uses Leave Policies as its standard entitlement mechanism.
 
 The flow is:
 
 ```text
+Configured Leave Types
+  ↓
+Submitted Leave Policy
+  ↓
 Employee
   ↓
 User + Employee linkage
@@ -225,34 +405,16 @@ Leave Approver
   ↓
 Holiday List Assignment
   ↓
-Submitted Leave Policy
-  ↓
 Submitted Leave Policy Assignment
   ↓
-Submitted Leave Allocations generated by Frappe HR
+Leave Allocations generated by Frappe HR
   ↓
 Self-service verification
 ```
 
 ---
 
-## 10. Confirm the Leave Policy exists and is submitted
-
-The applicable Leave Policy must already exist and be **Submitted**.
-
-### Verify
-
-Confirm:
-
-- the correct Leave Policy is selected;
-- the policy belongs to the intended organizational setup;
-- the policy is Submitted.
-
-Submitting the Leave Policy itself does not create an employee's Leave Allocations.
-
----
-
-## 11. Create the Leave Policy Assignment
+## 13. Create the Leave Policy Assignment
 
 Create a Leave Policy Assignment for the employee.
 
@@ -263,9 +425,13 @@ Typical fields include:
 - Assignment Based On;
 - Leave Period, when applicable;
 - effective dates;
-- any policy-specific carry-forward option your organization intentionally uses.
+- any carry-forward option that your organization intentionally uses.
+
+Frappe HR supports assignment based on a Leave Period, the employee's Joining Date, or manually defined effective dates.
 
 Save the document, review it, and then **Submit** it.
+
+On submission, Frappe HR creates Leave Allocation documents based on the assigned Leave Policy.
 
 ### Critical check
 
@@ -277,12 +443,12 @@ Confirm:
 
 - status = Submitted;
 - employee is correct;
-- leave policy is correct;
-- leave period or effective dates are correct.
+- Leave Policy is correct;
+- Leave Period or effective dates are correct.
 
 ---
 
-## 12. Verify generated Leave Allocations
+## 14. Verify generated Leave Allocations
 
 After the Leave Policy Assignment is submitted, verify the allocations Frappe HR generated.
 
@@ -292,28 +458,66 @@ For each expected Leave Type, check:
 - correct Leave Type;
 - expected allocation quantity according to your policy;
 - correct date range;
-- Leave Policy Assignment reference is populated when generated from the policy assignment;
-- status = Submitted.
+- Leave Policy Assignment reference is populated;
+- status = Submitted;
+- earned-leave schedules behave as expected if the Leave Type is configured as earned leave.
 
 `frappe_hr_self_service` reads the resulting Frappe HR leave state; it does not replace the entitlement-generation process.
 
 ---
 
-## 13. Pattern B - Import existing opening balances
+## 15. Pattern B - Import existing opening balances during cutover
 
-During an ERP or leave-system cutover, an organization may already know each employee's actual remaining leave balance.
+Pattern B is normally the **recommended cutover pattern for employees who already exist when Frappe HR is introduced partway through an active Leave Period**, provided HR has an authoritative remaining balance for those employees.
 
-A validated migration pattern is to import those remaining balances as standalone Leave Allocations instead of generating a fresh full-year entitlement for the same period.
+For those employees, generating a fresh annual entitlement through Pattern A during the middle of the same period can recreate leave that has already been consumed in the legacy system.
+
+Instead, import the actual remaining balances as standalone Leave Allocations for the rest of the cutover period.
 
 The key principle is:
 
-> Avoid unintentionally combining imported opening balances with newly generated entitlement for the same employee and period.
+> During a mid-period cutover, preserve the employee's real remaining balance rather than recreating the original annual entitlement.
 
-If your organization intentionally uses both, document and review that decision carefully.
+### Pattern B is a transition pattern, not the normal long-term state
+
+If the organization normally uses Leave Policies, imported standalone balances should usually be treated as a **one-time cutover bridge**.
+
+At the start of the next normal Leave Period, continuing employees should normally move to Pattern A and receive their new-period entitlement through a Leave Policy Assignment.
+
+For example, if:
+
+```text
+Frappe HR cutover:       18-Sep-2026
+Current Leave Period:    01-Jan-2026 to 31-Dec-2026
+Next Leave Period:       01-Jan-2027 to 31-Dec-2027
+```
+
+then a sensible implementation is:
+
+```text
+Existing employees at cutover
+    Sep-Dec 2026
+    → Pattern B: import verified remaining 2026 balances
+
+New 2027 Leave Period
+    01-Jan-2027
+    → Pattern A: assign the 2027 Leave Policy
+      to continuing employees
+```
+
+If the organization's Leave Period begins on another date, use that date instead of January 1.
+
+This is a recommended migration pattern, not a universal Frappe HR rule. Organizations that intentionally use direct Leave Allocations, special employee-specific arrangements, or another entitlement process may choose differently.
+
+### When Pattern B may not be necessary
+
+Pattern B is not automatically required merely because an employee existed before go-live.
+
+For example, if the implementation goes live exactly at the beginning of a new Leave Period and no legacy balance needs to be preserved, Pattern A may be appropriate immediately for existing employees as well.
 
 ---
 
-## 14. Choose a cutover date
+## 16. Choose a cutover date
 
 Define the date from which Frappe HR becomes authoritative for new leave transactions.
 
@@ -328,7 +532,7 @@ The exact date and transition policy belong to the implementing organization.
 
 ---
 
-## 15. Prepare verified opening balances
+## 17. Prepare verified opening balances
 
 HR should provide an auditable opening-balance source.
 
@@ -350,7 +554,7 @@ How future-dated approved or pending leave is handled is an organization-specifi
 
 ---
 
-## 16. Prepare standalone Leave Allocation imports
+## 18. Prepare standalone Leave Allocation imports
 
 Use Frappe's Data Import process for **Leave Allocation** when importing opening balances.
 
@@ -371,7 +575,7 @@ When importing standalone opening balances, Leave Policy, Leave Period, and Leav
 
 ---
 
-## 17. Import as Draft first
+## 19. Import as Draft first
 
 A safer migration sequence is:
 
@@ -400,7 +604,7 @@ Do not submit until the values have been checked.
 
 ---
 
-## 18. Submit imported Leave Allocations
+## 20. Submit imported Leave Allocations
 
 After validation, submit the imported Leave Allocations.
 
@@ -411,15 +615,15 @@ Each intended allocation should show:
 - status = Submitted;
 - correct balance;
 - correct validity dates;
-- expected Leave Policy Assignment linkage, or no linkage for a standalone opening balance.
+- no Leave Policy Assignment linkage for a standalone opening balance unless your migration design intentionally requires one.
 
 Then verify the employee's actual balance through Frappe HR and through the self-service UI.
 
 ---
 
-# Part V - End-to-end self-service verification
+# Part VI - End-to-end self-service verification
 
-## 19. Verify employee leave balance
+## 21. Verify employee leave balance
 
 Log in as the employee.
 
@@ -433,7 +637,7 @@ If no balance appears, use the troubleshooting section below.
 
 ---
 
-## 20. Verify leave eligibility
+## 22. Verify leave eligibility
 
 Select a valid date range in the employee UI.
 
@@ -449,7 +653,7 @@ Organization-specific rules such as waiting periods, sequencing, or custom eligi
 
 ---
 
-## 21. Verify leave request submission
+## 23. Verify leave request submission
 
 Submit a test leave request through:
 
@@ -469,7 +673,7 @@ The browser should not be trusted to supply the employee identity.
 
 ---
 
-## 22. Verify My Leave Requests
+## 24. Verify My Leave Requests
 
 Confirm that the employee can retrieve their own requests using:
 
@@ -481,7 +685,7 @@ The result should contain only Leave Applications belonging to the Employee deri
 
 ---
 
-## 23. Verify approver workflow
+## 25. Verify approver workflow
 
 Complete one test request when practical:
 
@@ -496,9 +700,9 @@ This is the strongest proof that the employee, allocation, holiday, approval, an
 
 ---
 
-# Part VI - Readiness checklist
+# Part VII - Readiness checklist
 
-## 24. Employee identity
+## 26. Employee identity
 
 - [ ] Employee exists
 - [ ] Employee is Active
@@ -510,35 +714,48 @@ This is the strongest proof that the employee, allocation, holiday, approval, an
 - [ ] employee has the intended self-service access
 - [ ] employee can reach the self-service home
 
-## 25. Approval setup
+## 27. Approval setup
 
 - [ ] Leave Approver is set
 - [ ] Leave Approver User exists and is enabled
 - [ ] approver has the required approval permissions/role
 
-## 26. Holiday setup
+## 28. Holiday setup
 
 - [ ] Holiday List Assignment exists
 - [ ] correct Holiday List is selected
 - [ ] effective date is correct
 - [ ] Holiday List Assignment is Submitted
 
-## 27. Policy-generated entitlement path
+## 29. Leave master setup
+
+- [ ] required Leave Types exist
+- [ ] Leave Type behavior matches approved policy
+- [ ] carry-forward settings are correct
+- [ ] waiting-period / working-day settings are correct where used
+- [ ] earned-leave settings are correct where used
+- [ ] Leave Period exists and has the correct dates, when used
+- [ ] Leave Policy contains the correct Leave Types
+- [ ] Annual Allocation values are correct
+- [ ] Leave Policy is Submitted
+
+## 30. Pattern A - policy-generated entitlement
 
 When using Leave Policy Assignment:
 
-- [ ] Leave Policy is Submitted
 - [ ] Leave Policy Assignment exists
 - [ ] correct Leave Period/effective dates are selected
 - [ ] correct policy is selected
 - [ ] Leave Policy Assignment is Submitted
 - [ ] expected Leave Allocations were generated
 - [ ] generated Leave Allocations are Submitted
+- [ ] earned-leave schedule is correct, where applicable
 
-## 28. Opening-balance import path
+## 31. Pattern B - opening-balance cutover
 
 When importing existing balances:
 
+- [ ] Pattern B is being used for a deliberate cutover reason
 - [ ] cutover/effective date is defined
 - [ ] opening balances are verified by HR
 - [ ] migration treatment of future approved/pending leave is documented
@@ -546,8 +763,9 @@ When importing existing balances:
 - [ ] imported values were reviewed before submission
 - [ ] imported allocations are Submitted
 - [ ] no unintended duplicate entitlement exists for the same period
+- [ ] transition to Pattern A at the next normal Leave Period has been planned, if the organization uses Leave Policies in steady state
 
-## 29. End-to-end test
+## 32. End-to-end test
 
 - [ ] self-service home opens
 - [ ] balances are visible
@@ -561,25 +779,27 @@ When importing existing balances:
 
 ---
 
-# Part VII - Troubleshooting
+# Part VIII - Troubleshooting
 
-## 30. No leave balance is available
+## 33. No leave balance is available
 
 Check in this order:
 
 1. Is the User linked to the correct Employee?
 2. Is exactly one active Employee linked to that User?
 3. Does the Employee have submitted Leave Allocations?
-4. If using the policy-assignment path, is the Leave Policy Assignment Submitted rather than Draft?
-5. Did submitting the Leave Policy Assignment generate the expected Leave Allocations?
-6. Are those Leave Allocations Submitted?
-7. Do their dates include the date being checked?
+4. If using Pattern A, is the Leave Policy Submitted?
+5. Is the Leave Policy Assignment Submitted rather than Draft?
+6. Did submitting the Leave Policy Assignment generate the expected Leave Allocations?
+7. Are those Leave Allocations Submitted?
+8. Do their dates include the date being checked?
+9. If this is Earned Leave, has the expected amount actually accrued yet?
 
 A saved but Draft Leave Policy Assignment is a common reason expected allocations do not appear.
 
 ---
 
-## 31. Balances display but leave eligibility fails
+## 34. Balances display but leave eligibility fails
 
 The balance endpoint may work even when Frappe HR cannot calculate leave days for a requested date range.
 
@@ -595,7 +815,7 @@ Fix by verifying:
 
 ---
 
-## 32. Employee does not land on the self-service Workspace
+## 35. Employee does not land on the self-service Workspace
 
 Check the User's default Workspace or equivalent navigation configuration.
 
@@ -605,7 +825,7 @@ The exact Workspace name is organization-specific.
 
 ---
 
-## 33. Employee request exists but balance did not reduce
+## 36. Employee request exists but balance did not reduce
 
 Check:
 
@@ -619,7 +839,7 @@ An Open or Draft request is not equivalent to an approved/submitted leave transa
 
 ---
 
-## 34. Imported employee has too much leave
+## 37. Imported employee has too much leave
 
 Check whether both of these exist for the same period:
 
@@ -632,7 +852,7 @@ Stop and review the migration design before processing further leave transaction
 
 ---
 
-## 35. Employee can see another employee's data
+## 38. Employee can see another employee's data
 
 The browser should not send an Employee ID and have the server trust that value as the authority for self-service access.
 
@@ -642,9 +862,9 @@ If you create additional endpoints, follow the same pattern.
 
 ---
 
-# Part VIII - Administrative principles
+# Part IX - Administrative principles
 
-## 36. Verify outcomes, not just configuration screens
+## 39. Verify outcomes, not just configuration screens
 
 Do not consider an employee fully configured merely because all setup forms contain values.
 
@@ -659,12 +879,14 @@ The final proof is:
 
 ---
 
-## 37. Keep policy separate from the reusable self-service layer
+## 40. Keep policy separate from the reusable self-service layer
 
 `frappe_hr_self_service` should remain reusable.
 
 Examples of organization-specific behavior that should normally remain in a downstream app or operational configuration include:
 
+- exact Leave Type configuration chosen by the organization;
+- annual entitlement quantities;
 - leave sequencing;
 - waiting periods;
 - entitlement formulas;
@@ -675,11 +897,11 @@ Examples of organization-specific behavior that should normally remain in a down
 - employee Workspace branding and routes;
 - migration/cutover business decisions.
 
-Use the public app for generic authenticated self-service behavior and documented extension points.
+The administration guide documents **where** those decisions are configured in Frappe HR without prescribing what an organization's policy must be.
 
 ---
 
-## 38. Keep UI configuration reproducible
+## 41. Keep UI configuration reproducible
 
 If your self-service Workspace, Web Pages, Custom HTML Blocks, Custom Fields, or Email Templates are created only in the live database, they may not be reproducible on another site or after a rebuild.
 
@@ -689,9 +911,9 @@ See the [Employee Self-Service UI Starter Guide](EMPLOYEE_SELF_SERVICE_UI_STARTE
 
 ---
 
-# Part IX - Useful first automation
+# Part X - Useful first automation
 
-## 39. Leave setup readiness checker
+## 42. Leave setup readiness checker
 
 Before automating document creation, a useful first automation is a read-only readiness checker that reports whether the employee is actually ready for self-service.
 
@@ -705,6 +927,8 @@ For example:
 ✓ Self-service access present
 ✓ Leave Approver configured
 ✓ Holiday List Assignment submitted
+✓ Leave Types configured
+✓ Leave Policy submitted
 ✓ Leave entitlement source configured
 ✓ Submitted Leave Allocations found
 
@@ -723,27 +947,35 @@ A readiness checker is safer as a first automation because it makes configuratio
 
 ---
 
-## 40. Later automation candidates
+## 43. Later automation candidates
 
 After the readiness checker is proven, an organization may automate selected administrative steps such as:
 
 - setting the employee's self-service Workspace;
 - creating Holiday List Assignments;
+- assigning a submitted Leave Policy;
 - creating Leave Policy Assignments;
 - preparing opening-balance import rows;
-- verifying generated or imported allocations.
+- verifying generated or imported allocations;
+- preparing the next-period transition from Pattern B to Pattern A.
 
 Creation and submission of HR documents should remain explicit and auditable according to the organization's operating controls.
 
 ---
 
-# 41. Final readiness summary
+# 44. Final readiness summary
 
 A working `frappe_hr_self_service` installation depends on a correctly configured Frappe HR foundation.
 
-The minimum operational chain is:
+The normal steady-state chain is:
 
 ```text
+Configured Leave Types
+  ↓
+Leave Period
+  ↓
+Submitted Leave Policy
+  ↓
 Active Employee
   ↓
 Enabled User linked to that Employee
@@ -752,6 +984,8 @@ Leave Approver configured
   ↓
 Applicable Holiday List
   ↓
+Submitted Leave Policy Assignment
+  ↓
 Submitted Leave Allocations
   ↓
 Employee self-service request
@@ -759,6 +993,20 @@ Employee self-service request
 Approver action
   ↓
 Frappe HR updates the authoritative leave state
+```
+
+During a mid-period implementation, existing employees may temporarily enter the process through Pattern B instead:
+
+```text
+Verified legacy remaining balances
+  ↓
+Standalone Leave Allocations for the cutover period
+  ↓
+Self-service operation
+  ↓
+Next normal Leave Period
+  ↓
+Pattern A, where Leave Policy Assignment is the organization's steady-state model
 ```
 
 The public self-service app simplifies how employees and approvers interact with that state; it does not replace the underlying Frappe HR administration required to create it.
