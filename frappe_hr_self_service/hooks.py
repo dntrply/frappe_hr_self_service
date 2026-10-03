@@ -6,3 +6,25 @@ app_email = ""
 app_license = "mit"
 
 required_apps = ["hrms"]
+
+fixtures = [
+    {
+        "dt": "Custom Field",
+        "filters": [
+            [
+                "name",
+                "=",
+                "Leave Application-custom_rejection_reason",
+            ]
+        ],
+    }
+]
+
+doc_events = {
+    "Leave Application": {
+        "before_submit": (
+            "frappe_hr_self_service.leave_approval."
+            "validate_rejection_reason"
+        ),
+    }
+}
