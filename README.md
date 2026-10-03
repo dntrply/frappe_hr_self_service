@@ -10,6 +10,10 @@ The project is being extracted from a working leave self-service implementation
 into a reusable Frappe app. Organization-specific leave policies are deliberately
 kept outside this app.
 
+## UI starter guide
+
+**Building an employee self-service UI?** See the [Employee Self-Service UI Starter Guide](docs/EMPLOYEE_SELF_SERVICE_UI_STARTER_GUIDE.md) for a worked example using Frappe Workspaces, Custom HTML Blocks, Web Pages, and the `frappe_hr_self_service` APIs.
+
 ## Goals
 
 Provide a small, secure self-service layer for Frappe HR that allows employees to:
