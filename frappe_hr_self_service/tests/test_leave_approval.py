@@ -93,12 +93,14 @@ class TestLeaveApproval(unittest.TestCase):
         leave_approver="approver@example.com",
         docstatus=0,
         status="Open",
+        rejection_reason="",
     ):
         return SimpleNamespace(
             name="HR-LAP-00001",
             leave_approver=leave_approver,
             docstatus=docstatus,
             status=status,
+            custom_rejection_reason=rejection_reason,
         )
 
     def test_guest_is_rejected_before_lookup(self):
@@ -198,7 +200,24 @@ class TestLeaveApproval(unittest.TestCase):
         self.frappe.clear_messages.assert_called_once_with()
         self.assertEqual(result["status"], "Approved")
 
-    def test_reject_checks_submit_permission_and_submits(self):
+    def test_reject_requires_reason(self):
+        leave = self.leave()
+        leave.check_permission = Mock()
+        leave.submit = Mock()
+
+        self.frappe.db.get_value.return_value = "HR-LAP-00001"
+        self.frappe.get_doc.return_value = leave
+
+        with self.assertRaises(TestValidationError):
+            self.leave_approval.reject_leave(
+                "HR-LAP-00001"
+            )
+
+        leave.check_permission.assert_called_once_with("submit")
+        leave.submit.assert_not_called()
+        self.assertEqual(leave.status, "Open")
+
+    def test_reject_checks_permission_stores_reason_and_submits(self):
         leave = self.leave()
         leave.check_permission = Mock()
         leave.submit = Mock()
@@ -207,14 +226,49 @@ class TestLeaveApproval(unittest.TestCase):
         self.frappe.get_doc.return_value = leave
 
         result = self.leave_approval.reject_leave(
-            "HR-LAP-00001"
+            "HR-LAP-00001",
+            reason="  Coverage is unavailable.  ",
         )
 
         leave.check_permission.assert_called_once_with("submit")
         self.assertEqual(leave.status, "Rejected")
+        self.assertEqual(
+            leave.custom_rejection_reason,
+            "Coverage is unavailable.",
+        )
         leave.submit.assert_called_once_with()
         self.frappe.clear_messages.assert_called_once_with()
         self.assertEqual(result["status"], "Rejected")
+        self.assertEqual(
+            result["rejection_reason"],
+            "Coverage is unavailable.",
+        )
+
+    def test_before_submit_hook_requires_reason_for_rejection(self):
+        leave = self.leave(status="Rejected")
+
+        with self.assertRaises(TestValidationError):
+            self.leave_approval.validate_rejection_reason(leave)
+
+    def test_before_submit_hook_normalizes_reason(self):
+        leave = self.leave(
+            status="Rejected",
+            rejection_reason="  Not enough coverage.  ",
+        )
+
+        self.leave_approval.validate_rejection_reason(leave)
+
+        self.assertEqual(
+            leave.custom_rejection_reason,
+            "Not enough coverage.",
+        )
+
+    def test_before_submit_hook_ignores_approved_leave(self):
+        leave = self.leave(status="Approved")
+
+        self.leave_approval.validate_rejection_reason(leave)
+
+        self.assertEqual(leave.custom_rejection_reason, "")
 
     def test_approve_rejects_processed_request(self):
         self.frappe.db.get_value.return_value = "HR-LAP-00001"
@@ -237,5 +291,6 @@ class TestLeaveApproval(unittest.TestCase):
 
         with self.assertRaises(TestValidationError):
             self.leave_approval.reject_leave(
-                "HR-LAP-00001"
+                "HR-LAP-00001",
+                reason="Already rejected",
             )
