@@ -35,8 +35,10 @@ def get_requested_leave_days(
     leave_type,
     from_date,
     to_date,
+    half_day=None,
+    half_day_date=None,
 ):
-    """Return leave days consumed for the given dates and leave type."""
+    """Return leave days consumed using native HRMS leave calculation."""
 
     from hrms.hr.doctype.leave_application.leave_application import (
         get_number_of_leave_days,
@@ -48,6 +50,12 @@ def get_requested_leave_days(
             leave_type,
             getdate(from_date),
             getdate(to_date),
+            half_day=cint(half_day),
+            half_day_date=(
+                getdate(half_day_date)
+                if half_day_date
+                else None
+            ),
         )
     )
 
