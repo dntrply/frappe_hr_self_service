@@ -240,6 +240,8 @@ def _create_leave_application(
     leave_type,
     from_date,
     to_date,
+    half_day=0,
+    half_day_date=None,
     reason=None,
 ):
     """Create a Leave Application for the logged-in employee."""
@@ -258,6 +260,12 @@ def _create_leave_application(
             "leave_type": leave_type,
             "from_date": getdate(from_date),
             "to_date": getdate(to_date),
+            "half_day": cint(half_day),
+            "half_day_date": (
+                getdate(half_day_date)
+                if half_day_date
+                else None
+            ),
             "description": reason or "",
             "status": "Open",
             "follow_via_email": 1,
@@ -274,6 +282,8 @@ def create_leave_request(
     from_date=None,
     to_date=None,
     leave_type=None,
+    half_day=None,
+    half_day_date=None,
     reason=None,
 ):
     """Create a leave request after server-side eligibility checks."""
@@ -301,6 +311,8 @@ def create_leave_request(
     availability = get_available_leave_types(
         from_date=from_date,
         to_date=to_date,
+        half_day=half_day,
+        half_day_date=half_day_date,
     )
 
     if availability.get("existing_request"):
@@ -341,6 +353,8 @@ def create_leave_request(
         leave_type=leave_type,
         from_date=from_date,
         to_date=to_date,
+        half_day=availability["half_day"],
+        half_day_date=availability["half_day_date"],
         reason=reason,
     )
 
@@ -354,5 +368,11 @@ def create_leave_request(
         "leave_type": doc.leave_type,
         "from_date": str(doc.from_date),
         "to_date": str(doc.to_date),
+        "half_day": cint(doc.half_day),
+        "half_day_date": (
+            str(doc.half_day_date)
+            if doc.half_day_date
+            else None
+        ),
         "total_leave_days": flt(doc.total_leave_days),
     }

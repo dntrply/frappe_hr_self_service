@@ -419,6 +419,8 @@ class TestEmployeeSelfService(unittest.TestCase):
             leave_type="Example Leave",
             from_date=date(2026, 9, 20),
             to_date=date(2026, 9, 20),
+            half_day=0,
+            half_day_date=None,
             total_leave_days=1.0,
             insert=insert,
         )
@@ -440,6 +442,8 @@ class TestEmployeeSelfService(unittest.TestCase):
                 "leave_type": "Example Leave",
                 "from_date": date(2026, 9, 20),
                 "to_date": date(2026, 9, 20),
+                "half_day": 0,
+                "half_day_date": None,
                 "description": "Family event",
                 "status": "Open",
                 "follow_via_email": 1,
@@ -460,7 +464,100 @@ class TestEmployeeSelfService(unittest.TestCase):
         self.assertEqual(result["name"], "HR-LAP-00001")
         self.assertEqual(result["status"], "Open")
         self.assertEqual(result["leave_type"], "Example Leave")
+        self.assertEqual(result["half_day"], 0)
+        self.assertIsNone(result["half_day_date"])
         self.assertEqual(result["total_leave_days"], 1.0)
+
+    def test_create_single_day_half_day_request(self):
+        self.get_requested_leave_days.return_value = 0.5
+
+        insert = Mock()
+        document = SimpleNamespace(
+            name="HR-LAP-00002",
+            status="Open",
+            leave_type="Example Leave",
+            from_date=date(2026, 10, 15),
+            to_date=date(2026, 10, 15),
+            half_day=1,
+            half_day_date=date(2026, 10, 15),
+            total_leave_days=0.5,
+            insert=insert,
+        )
+        self.frappe.get_doc.return_value = document
+
+        result = self.employee_self_service.create_leave_request(
+            from_date="2026-10-15",
+            to_date="2026-10-15",
+            leave_type="Example Leave",
+            half_day=1,
+            reason="Appointment",
+        )
+
+        self.frappe.get_doc.assert_called_once_with(
+            {
+                "doctype": "Leave Application",
+                "employee": "HR-EMP-00001",
+                "company": "Example Company",
+                "leave_approver": "approver@example.com",
+                "leave_type": "Example Leave",
+                "from_date": date(2026, 10, 15),
+                "to_date": date(2026, 10, 15),
+                "half_day": 1,
+                "half_day_date": date(2026, 10, 15),
+                "description": "Appointment",
+                "status": "Open",
+                "follow_via_email": 1,
+            }
+        )
+
+        insert.assert_called_once_with(
+            ignore_permissions=True
+        )
+
+        self.assertEqual(result["half_day"], 1)
+        self.assertEqual(
+            result["half_day_date"],
+            "2026-10-15",
+        )
+        self.assertEqual(result["total_leave_days"], 0.5)
+
+    def test_create_multi_day_half_day_request(self):
+        self.get_requested_leave_days.return_value = 2.5
+
+        insert = Mock()
+        document = SimpleNamespace(
+            name="HR-LAP-00003",
+            status="Open",
+            leave_type="Example Leave",
+            from_date=date(2026, 10, 15),
+            to_date=date(2026, 10, 17),
+            half_day=1,
+            half_day_date=date(2026, 10, 17),
+            total_leave_days=2.5,
+            insert=insert,
+        )
+        self.frappe.get_doc.return_value = document
+
+        result = self.employee_self_service.create_leave_request(
+            from_date="2026-10-15",
+            to_date="2026-10-17",
+            leave_type="Example Leave",
+            half_day=1,
+            half_day_date="2026-10-17",
+        )
+
+        payload = self.frappe.get_doc.call_args.args[0]
+
+        self.assertEqual(payload["half_day"], 1)
+        self.assertEqual(
+            payload["half_day_date"],
+            date(2026, 10, 17),
+        )
+        self.assertEqual(result["total_leave_days"], 2.5)
+        self.assertEqual(
+            result["half_day_date"],
+            "2026-10-17",
+        )
 
     def test_extension_can_block_core_eligible_leave(self):
         self.get_leave_eligibility_extension_reason.return_value = (
