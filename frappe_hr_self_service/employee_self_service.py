@@ -43,6 +43,8 @@ def get_my_leave_requests():
             "leave_type",
             "from_date",
             "to_date",
+            "half_day",
+            "half_day_date",
             "total_leave_days",
             "status",
             "docstatus",

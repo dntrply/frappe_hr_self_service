@@ -2,7 +2,7 @@
 
 import frappe
 from frappe import _
-from frappe.utils import formatdate
+from frappe.utils import cint, formatdate
 
 
 REJECTION_REASON_FIELD = "custom_rejection_reason"
@@ -113,6 +113,8 @@ def get_pending_leave_approvals():
             "leave_type",
             "from_date",
             "to_date",
+            "half_day",
+            "half_day_date",
             "total_leave_days",
             "description",
         ],
@@ -126,6 +128,12 @@ def get_pending_leave_approvals():
             "leave_type": row.leave_type,
             "from_date": formatdate(row.from_date),
             "to_date": formatdate(row.to_date),
+            "half_day": cint(row.half_day),
+            "half_day_date": (
+                formatdate(row.half_day_date)
+                if row.half_day_date
+                else None
+            ),
             "total_leave_days": row.total_leave_days,
             "reason": row.description or "",
         }
@@ -145,6 +153,12 @@ def get_leave_for_approval(name):
         "leave_type": leave.leave_type,
         "from_date": formatdate(leave.from_date),
         "to_date": formatdate(leave.to_date),
+        "half_day": cint(leave.half_day),
+        "half_day_date": (
+            formatdate(leave.half_day_date)
+            if leave.half_day_date
+            else None
+        ),
         "total_leave_days": leave.total_leave_days,
         "reason": leave.description or "",
         "status": leave.status,

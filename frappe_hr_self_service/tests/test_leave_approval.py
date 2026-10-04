@@ -50,6 +50,7 @@ class TestLeaveApproval(unittest.TestCase):
         cls.frappe.whitelist = whitelist
 
         frappe_utils = types.ModuleType("frappe.utils")
+        frappe_utils.cint = lambda value: int(value or 0)
         frappe_utils.formatdate = lambda value: str(value)
 
         sys.modules["frappe"] = cls.frappe
@@ -85,6 +86,8 @@ class TestLeaveApproval(unittest.TestCase):
 
         self.frappe.db.get_value.reset_mock()
         self.frappe.get_doc.reset_mock()
+        self.frappe.get_all.reset_mock()
+        self.frappe.get_all.return_value = []
         self.frappe.clear_messages.reset_mock()
 
     def leave(
@@ -181,6 +184,75 @@ class TestLeaveApproval(unittest.TestCase):
                 "HR-LAP-00001",
                 require_open=True,
             )
+
+    def test_pending_approvals_include_half_day_fields(self):
+        self.frappe.get_all.return_value = [
+            SimpleNamespace(
+                name="HR-LAP-00001",
+                employee_name="Example Employee",
+                leave_type="Example Leave",
+                from_date="2026-10-15",
+                to_date="2026-10-17",
+                half_day=1,
+                half_day_date="2026-10-17",
+                total_leave_days=2.5,
+                description="Appointment",
+            )
+        ]
+
+        result = (
+            self.leave_approval.get_pending_leave_approvals()
+        )
+
+        self.assertEqual(result[0]["half_day"], 1)
+        self.assertEqual(
+            result[0]["half_day_date"],
+            "2026-10-17",
+        )
+        self.assertEqual(
+            result[0]["total_leave_days"],
+            2.5,
+        )
+
+        fields = self.frappe.get_all.call_args.kwargs["fields"]
+        self.assertIn("half_day", fields)
+        self.assertIn("half_day_date", fields)
+
+    def test_leave_for_approval_includes_half_day_fields(self):
+        leave = SimpleNamespace(
+            name="HR-LAP-00001",
+            employee_name="Example Employee",
+            leave_approver="approver@example.com",
+            leave_type="Example Leave",
+            from_date="2026-10-15",
+            to_date="2026-10-17",
+            half_day=1,
+            half_day_date="2026-10-17",
+            total_leave_days=2.5,
+            description="Appointment",
+            status="Open",
+            docstatus=0,
+            custom_rejection_reason="",
+        )
+
+        self.frappe.db.get_value.return_value = (
+            "HR-LAP-00001"
+        )
+        self.frappe.get_doc.return_value = leave
+
+        result = self.leave_approval.get_leave_for_approval(
+            "HR-LAP-00001"
+        )
+
+        self.assertEqual(result["half_day"], 1)
+        self.assertEqual(
+            result["half_day_date"],
+            "2026-10-17",
+        )
+        self.assertEqual(
+            result["total_leave_days"],
+            2.5,
+        )
 
     def test_approve_checks_submit_permission_and_submits(self):
         leave = self.leave()

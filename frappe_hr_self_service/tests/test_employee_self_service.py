@@ -44,6 +44,7 @@ class TestEmployeeSelfService(unittest.TestCase):
         cls.frappe.throw = throw
         cls.frappe.whitelist = whitelist
         cls.frappe.get_doc = Mock()
+        cls.frappe.get_all = Mock()
         cls.frappe.clear_messages = Mock()
 
         frappe_utils = types.ModuleType("frappe.utils")
@@ -165,6 +166,8 @@ class TestEmployeeSelfService(unittest.TestCase):
 
         self.frappe.get_doc.reset_mock()
         self.frappe.get_doc.return_value = None
+        self.frappe.get_all.reset_mock()
+        self.frappe.get_all.return_value = []
         self.frappe.clear_messages.reset_mock()
 
         self.get_current_employee.return_value = self.employee
@@ -182,6 +185,39 @@ class TestEmployeeSelfService(unittest.TestCase):
             "leave_balance": 5.0,
             "leave_balance_for_consumption": 5.0,
         }
+
+    def test_my_leave_requests_includes_half_day_fields(self):
+        rows = [{"name": "HR-LAP-00001"}]
+        self.frappe.get_all.return_value = rows
+
+        result = (
+            self.employee_self_service.get_my_leave_requests()
+        )
+
+        self.assertIs(result, rows)
+
+        self.frappe.get_all.assert_called_once_with(
+            "Leave Application",
+            filters={
+                "employee": "HR-EMP-00001",
+            },
+            fields=[
+                "name",
+                "leave_type",
+                "from_date",
+                "to_date",
+                "half_day",
+                "half_day_date",
+                "total_leave_days",
+                "status",
+                "docstatus",
+                (
+                    "custom_rejection_reason "
+                    "as rejection_reason"
+                ),
+            ],
+            order_by="creation desc",
+        )
 
     def test_missing_dates_still_resolve_current_employee(self):
         result = (
