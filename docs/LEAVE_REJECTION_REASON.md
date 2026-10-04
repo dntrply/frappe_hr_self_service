@@ -76,7 +76,7 @@ A successful response includes:
 ```text
 name
 status
- docstatus
+docstatus
 rejection_reason
 message
 ```
