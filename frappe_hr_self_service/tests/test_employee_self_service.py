@@ -254,6 +254,28 @@ class TestEmployeeSelfService(unittest.TestCase):
         self.assertEqual(result["leave_types"], [])
         self.get_allocated_leave_types.assert_not_called()
 
+    def test_half_day_overlap_is_deferred_to_native_hrms(self):
+        self.get_overlapping_leave_application.return_value = {
+            "name": "HR-LAP-EXISTING",
+            "status": "Open",
+        }
+        self.get_requested_leave_days.return_value = 0.5
+
+        result = (
+            self.employee_self_service.get_available_leave_types(
+                "2026-10-15",
+                "2026-10-15",
+                half_day=1,
+            )
+        )
+
+        self.get_overlapping_leave_application.assert_not_called()
+        self.assertIsNone(result["existing_request"])
+        self.assertEqual(
+            result["leave_types"][0]["requested_days"],
+            0.5,
+        )
+
     def test_leave_type_is_eligible_with_sufficient_balance(self):
         result = (
             self.employee_self_service.get_available_leave_types(

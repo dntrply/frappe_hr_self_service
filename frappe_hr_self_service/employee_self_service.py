@@ -100,11 +100,14 @@ def get_available_leave_types(
     else:
         half_day_date = None
 
-    existing_request = get_overlapping_leave_application(
-        employee.name,
-        from_date,
-        to_date,
-    )
+    existing_request = None
+
+    if not half_day:
+        existing_request = get_overlapping_leave_application(
+            employee.name,
+            from_date,
+            to_date,
+        )
 
     if existing_request:
         return {
