@@ -78,7 +78,7 @@ def get_available_leave_types(
     if to_date < from_date:
         frappe.throw(_("To Date cannot be before From Date."))
 
-    half_day = cint(half_day)
+    half_day = 1 if cint(half_day) else 0
 
     if half_day:
         if from_date == to_date:

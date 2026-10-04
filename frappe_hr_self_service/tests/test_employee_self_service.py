@@ -321,6 +321,32 @@ class TestEmployeeSelfService(unittest.TestCase):
             half_day_date=date(2026, 10, 15),
         )
 
+    def test_half_day_input_is_normalized_to_one(self):
+        self.get_requested_leave_days.return_value = 0.5
+
+        result = (
+            self.employee_self_service.get_available_leave_types(
+                "2026-10-15",
+                "2026-10-15",
+                half_day="2",
+            )
+        )
+
+        self.assertEqual(result["half_day"], 1)
+        self.assertEqual(
+            result["half_day_date"],
+            "2026-10-15",
+        )
+
+        self.get_requested_leave_days.assert_called_once_with(
+            "HR-EMP-00001",
+            "Example Leave",
+            date(2026, 10, 15),
+            date(2026, 10, 15),
+            half_day=1,
+            half_day_date=date(2026, 10, 15),
+        )
+
     def test_multi_day_half_day_passes_selected_date(self):
         self.get_requested_leave_days.return_value = 2.5
 
