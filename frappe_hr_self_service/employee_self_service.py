@@ -2,7 +2,7 @@
 
 import frappe
 from frappe import _
-from frappe.utils import date_diff, flt, getdate
+from frappe.utils import cint, date_diff, flt, getdate
 
 from frappe_hr_self_service.employee_context import get_current_employee
 from frappe_hr_self_service.extensions import (
@@ -53,7 +53,12 @@ def get_my_leave_requests():
 
 
 @frappe.whitelist()
-def get_available_leave_types(from_date=None, to_date=None):
+def get_available_leave_types(
+    from_date=None,
+    to_date=None,
+    half_day=None,
+    half_day_date=None,
+):
     """Return leave-type eligibility for the logged-in employee.
 
     This endpoint is a preflight aid for employee self-service. Native HRMS
@@ -70,6 +75,28 @@ def get_available_leave_types(from_date=None, to_date=None):
 
     if to_date < from_date:
         frappe.throw(_("To Date cannot be before From Date."))
+
+    half_day = cint(half_day)
+
+    if half_day:
+        if from_date == to_date:
+            half_day_date = from_date
+        elif not half_day_date:
+            frappe.throw(
+                _(
+                    "Half Day Date is required for a multi-day "
+                    "half-day request."
+                )
+            )
+        else:
+            half_day_date = getdate(half_day_date)
+
+        if half_day_date < from_date or half_day_date > to_date:
+            frappe.throw(
+                _("Half Day Date must be between From Date and To Date.")
+            )
+    else:
+        half_day_date = None
 
     existing_request = get_overlapping_leave_application(
         employee.name,
@@ -101,6 +128,8 @@ def get_available_leave_types(from_date=None, to_date=None):
             leave_type,
             from_date,
             to_date,
+            half_day=half_day,
+            half_day_date=half_day_date,
         )
 
         balances = get_consumable_leave_balance(
@@ -195,6 +224,12 @@ def get_available_leave_types(from_date=None, to_date=None):
     return {
         "from_date": str(from_date),
         "to_date": str(to_date),
+        "half_day": half_day,
+        "half_day_date": (
+            str(half_day_date)
+            if half_day_date
+            else None
+        ),
         "existing_request": None,
         "leave_types": results,
     }

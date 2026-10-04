@@ -61,6 +61,7 @@ class TestEmployeeSelfService(unittest.TestCase):
             (getdate(first) - getdate(second)).days
         )
         frappe_utils.flt = lambda value: float(value or 0)
+        frappe_utils.cint = lambda value: int(value or 0)
 
         cls.employee = SimpleNamespace(
             name="HR-EMP-00001",
@@ -232,6 +233,75 @@ class TestEmployeeSelfService(unittest.TestCase):
         self.assertIsNone(row["reason"])
         self.assertEqual(row["requested_days"], 1.0)
         self.assertEqual(row["available_for_request"], 5.0)
+
+    def test_single_day_half_day_uses_selected_date(self):
+        self.get_requested_leave_days.return_value = 0.5
+
+        result = (
+            self.employee_self_service.get_available_leave_types(
+                "2026-10-15",
+                "2026-10-15",
+                half_day=1,
+            )
+        )
+
+        row = result["leave_types"][0]
+
+        self.assertEqual(row["requested_days"], 0.5)
+        self.assertEqual(result["half_day"], 1)
+        self.assertEqual(
+            result["half_day_date"],
+            "2026-10-15",
+        )
+
+        self.get_requested_leave_days.assert_called_once_with(
+            "HR-EMP-00001",
+            "Example Leave",
+            date(2026, 10, 15),
+            date(2026, 10, 15),
+            half_day=1,
+            half_day_date=date(2026, 10, 15),
+        )
+
+    def test_multi_day_half_day_passes_selected_date(self):
+        self.get_requested_leave_days.return_value = 2.5
+
+        result = (
+            self.employee_self_service.get_available_leave_types(
+                "2026-10-15",
+                "2026-10-17",
+                half_day="1",
+                half_day_date="2026-10-17",
+            )
+        )
+
+        row = result["leave_types"][0]
+
+        self.assertEqual(row["requested_days"], 2.5)
+        self.assertEqual(result["half_day"], 1)
+        self.assertEqual(
+            result["half_day_date"],
+            "2026-10-17",
+        )
+
+        self.get_requested_leave_days.assert_called_once_with(
+            "HR-EMP-00001",
+            "Example Leave",
+            date(2026, 10, 15),
+            date(2026, 10, 17),
+            half_day=1,
+            half_day_date=date(2026, 10, 17),
+        )
+
+    def test_multi_day_half_day_requires_half_day_date(self):
+        with self.assertRaises(TestValidationError):
+            self.employee_self_service.get_available_leave_types(
+                "2026-10-15",
+                "2026-10-17",
+                half_day=1,
+            )
+
+        self.get_requested_leave_days.assert_not_called()
 
     def test_applicable_after_waiting_period_is_enforced(self):
         self.employee.date_of_joining = date(2026, 9, 1)
