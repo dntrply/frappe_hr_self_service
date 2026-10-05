@@ -46,6 +46,26 @@ and a few reusable workflow conveniences. Organization-specific policies,
 branding, navigation, and business rules should stay in the organization's own
 custom app rather than in this reusable core.
 
+## Screenshots
+
+The screenshots below can show one example of an organization-specific employee
+experience built on top of `frappe_hr_self_service`. The UI itself is not part of
+the reusable core; it is an example of how the APIs can be presented to employees
+and approvers.
+
+Good screenshots to include are:
+
+1. **Employee home / self-service workspace** — a simple starting point for common HR actions.
+2. **Request Leave** — including full-day and half-day leave selection and eligibility feedback.
+3. **Approver review** — showing the simplified leave-review experience and half-day details.
+
+Store screenshot files somewhere in the repository, for example under
+`docs/images/`, and add them here using normal Markdown image links, such as:
+
+```markdown
+![Request Leave](docs/images/request-leave.png)
+```
+
 ## Documentation
 
 - [Employee Self-Service UI Starter Guide](docs/EMPLOYEE_SELF_SERVICE_UI_STARTER_GUIDE.md) — worked example using Frappe Workspaces, Custom HTML Blocks, Web Pages, and the public self-service APIs.
