@@ -101,8 +101,46 @@ Provide approvers with a simplified workflow to:
 Initial supported target:
 
 - Frappe 16
-- Frappe HR / HRMS
+- Frappe HR / HRMS 16
 - Python 3.14+
+
+Frappe HR / HRMS must already be installed on the site before installing
+`frappe_hr_self_service`.
+
+## Installation
+
+From your Bench directory, fetch the app:
+
+```bash
+bench get-app https://github.com/dntrply/frappe_hr_self_service.git
+```
+
+Install it on your site:
+
+```bash
+bench --site your-site.example.com install-app frappe_hr_self_service
+```
+
+Then migrate the site:
+
+```bash
+bench --site your-site.example.com migrate
+```
+
+Verify that the app is installed:
+
+```bash
+bench --site your-site.example.com list-apps
+```
+
+You should see:
+
+```text
+frappe_hr_self_service
+```
+
+Frappe HR / HRMS is a required app and must be installed first. ERPNext is not
+declared as a dependency of `frappe_hr_self_service`.
 
 ## License
 
