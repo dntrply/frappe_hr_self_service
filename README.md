@@ -10,6 +10,42 @@ The project is being extracted from a working leave self-service implementation
 into a reusable Frappe app. Organization-specific leave policies are deliberately
 kept outside this app.
 
+## Why this exists
+
+Frappe HR already provides the underlying leave workflow, validation, balances,
+approvals, and Leave Application model. This project is not intended to replace
+or duplicate that functionality.
+
+The problem it addresses is the employee-facing experience.
+
+In many organizations, an employee who simply wants to request leave, check a
+balance, or review the status of a request does not need the full Desk or HR
+workspace. A smaller self-service surface can make those common actions easier
+to understand while still using Frappe HR as the authoritative system of record.
+
+`frappe_hr_self_service` therefore provides a narrow, reusable API layer for
+employee and approver leave actions. Organizations can build their own simple
+employee experience on top of those APIs using Frappe Workspaces, Web Pages,
+Custom HTML Blocks, or another frontend.
+
+The intended separation is:
+
+```text
+Organization-specific employee UI
+            |
+            v
+frappe_hr_self_service
+            |
+            v
+       Frappe HR / HRMS
+```
+
+Frappe HR remains responsible for native leave calculation and validation. The
+self-service layer handles authenticated employee context, a smaller API surface,
+and a few reusable workflow conveniences. Organization-specific policies,
+branding, navigation, and business rules should stay in the organization's own
+custom app rather than in this reusable core.
+
 ## Documentation
 
 - [Employee Self-Service UI Starter Guide](docs/EMPLOYEE_SELF_SERVICE_UI_STARTER_GUIDE.md) — worked example using Frappe Workspaces, Custom HTML Blocks, Web Pages, and the public self-service APIs.
