@@ -48,22 +48,19 @@ custom app rather than in this reusable core.
 
 ## Screenshots
 
-The screenshots below can show one example of an organization-specific employee
+The screenshots below show one example of an organization-specific employee
 experience built on top of `frappe_hr_self_service`. The UI itself is not part of
-the reusable core; it is an example of how the APIs can be presented to employees
-and approvers.
-
-Good screenshots to include are:
+the reusable core; it illustrates how the APIs can be presented to employees and
+approvers.
 
 1. **Employee home / self-service workspace** — a simple starting point for common HR actions.
-   <img width="1437" height="887" alt="image" src="https://github.com/user-attachments/assets/1db4a32b-f8e0-4bbf-bcca-e016affea31a" />
+   <img width="1437" height="887" alt="Employee self-service workspace" src="https://github.com/user-attachments/assets/1db4a32b-f8e0-4bbf-bcca-e016affea31a" />
 
 2. **Request Leave** — including full-day and half-day leave selection and eligibility feedback.
-   <img width="953" height="847" alt="image" src="https://github.com/user-attachments/assets/a6f7162a-4e47-401a-95ab-2fdb147d9226" />
+   <img width="953" height="847" alt="Request Leave page with half-day selection" src="https://github.com/user-attachments/assets/a6f7162a-4e47-401a-95ab-2fdb147d9226" />
 
 3. **Approver review** — showing the simplified leave-review experience and half-day details.
-   <img width="963" height="862" alt="image" src="https://github.com/user-attachments/assets/62082237-7b3a-4353-82e5-28c06d3c24c4" />
-
+   <img width="963" height="862" alt="Approver review page with half-day details" src="https://github.com/user-attachments/assets/62082237-7b3a-4353-82e5-28c06d3c24c4" />
 
 ## Documentation
 
