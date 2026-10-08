@@ -142,6 +142,43 @@ frappe_hr_self_service
 Frappe HR / HRMS is a required app and must be installed first. ERPNext is not
 declared as a dependency of `frappe_hr_self_service`.
 
+## Uninstallation
+
+Before uninstalling, take a site backup:
+
+```bash
+bench --site your-site.example.com backup
+```
+
+Uninstall the app from the site:
+
+```bash
+bench --site your-site.example.com uninstall-app frappe_hr_self_service
+```
+
+Then migrate the site:
+
+```bash
+bench --site your-site.example.com migrate
+```
+
+Verify that the app is no longer installed:
+
+```bash
+bench --site your-site.example.com list-apps
+```
+
+Uninstalling the app from a site and removing the app code from the Bench are
+separate operations. If no other site on the Bench uses `frappe_hr_self_service`,
+you can also remove the app from the Bench:
+
+```bash
+bench remove-app frappe_hr_self_service
+```
+
+Take a backup before uninstalling because app-owned records or customizations may
+be removed as part of the uninstall process.
+
 ## License
 
 MIT
